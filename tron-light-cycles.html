@@ -1,0 +1,272 @@
+/*
+Paul Chaffanet
+CHAP23049301
+AP46370
+*/
+
+<html>
+<body>
+<h1>Tron Light Cycles (Motocyclettes de lumi&egrave;re de Tron)</h1>
+<div style="color: #00ff00">Score joueur vert: <span id="Vert" style="color: #00ff00">0</span></div>
+<div style="color: #ff0000">Score joueur rouge: <span id="Rouge" style="color: #ff0000">0</span></div>
+<canvas id="myCanvas" width="700" height="700" style="border:2px solid #000000;">
+</canvas>
+
+<script>
+
+// Creates a 2D array filled with zeros
+var create2DArray = function( numColumns, numRows ) {
+	var array = [];
+	for ( var c = 0; c < numColumns; c++ ) {
+		array.push([]); // adds an empty 1D array at the end of "array"
+		for ( var r = 0; r < numRows; r++ ) {
+			array[c].push(0); // add zero at end of the 1D array "array[c]"
+		}
+	}
+	return array;
+}
+
+function KeyCodes(up, down, left, right) {
+	this.up = up;
+	this.down = down;
+	this.left = left;
+	this.right = right;
+}
+
+function LightCycle (description, aliveColor, deadColor, traceColor, grid_width, grid_height, x, y, vx, vy, keyCodes) {
+	
+	var self = this;
+
+	this.initial = {
+		x: x,
+		y: y,
+		vx: vx,
+		vy: vy
+	};
+	this.description = description;
+	this.x = x;
+	this.y = y;
+	this.vx = vx;
+	this.vy = vy;
+	this.aliveColor = aliveColor;
+	this.deadColor = deadColor;
+	this.traceColor = traceColor;
+	this.alive = true;
+	this.grid_width = grid_width;
+	this.grid_height = grid_height;
+	this.grid = create2DArray( grid_width, grid_height );
+	this.grid[x][y] = 1;
+	this.keyCodes = keyCodes;
+	
+}
+
+LightCycle.prototype = {
+	keyDownHandler: function(e) {
+		// Évite crash quand on choisit la direction opposée
+		if ( e.keyCode == this.keyCodes.up && this.vy != 1 ) {
+			this.vx = 0;
+			this.vy = -1;
+		}
+		else if ( e.keyCode == this.keyCodes.down && this.vy != -1 ) {
+			this.vx = 0;
+			this.vy = 1;
+		}
+		else if ( e.keyCode == this.keyCodes.left && this.vx != 1 ) {
+			this.vx = -1;
+			this.vy = 0;
+		}
+		else if ( e.keyCode == this.keyCodes.right && this.vx != -1 ) {
+			this.vx = 1;
+			this.vy = 0;
+		}		
+	},
+	reset: function() {
+		this.x = this.initial.x;
+		this.y = this.initial.y;
+		this.vx = this.initial.vx;
+		this.vy = this.initial.vy;
+		this.alive = true;
+		this.grid = create2DArray( this.grid_width, this.grid_height );
+		this.grid[this.x][this.y] = 1;
+	}
+}
+
+function TronLightCycles(canvas) {
+	this.canvas = canvas;
+	this.canvas_rectangle = canvas.getBoundingClientRect();
+	this.CELL_EMPTY = 0;
+    this.CELL_OCCUPIED = 1;
+	this.cellSize = 5;
+	this.context = canvas.getContext("2d");
+	this.NUM_CELLS_HORIZONTAL = canvas.width / this.cellSize;
+	this.NUM_CELLS_VERTICAL = canvas.height / this.cellSize;
+	this.x0 = ( canvas.width - this.NUM_CELLS_HORIZONTAL * this.cellSize ) / 2;
+	this.y0 = ( canvas.height - this.NUM_CELLS_VERTICAL * this.cellSize ) / 2;
+	this.isEnded = false;
+	this.grid = create2DArray( this.NUM_CELLS_HORIZONTAL, this.NUM_CELLS_VERTICAL);
+	this.lightCycles = [new LightCycle("Rouge", "#ff0000", "#ffffff", "#ff0000", this.NUM_CELLS_HORIZONTAL, this.NUM_CELLS_VERTICAL, this.NUM_CELLS_HORIZONTAL / 2, this.NUM_CELLS_VERTICAL - 2, 0, -1, new KeyCodes(38, 40, 37, 39)), new LightCycle("Vert", "#00ff00", "#ffffff", "#00ff00",  this.NUM_CELLS_HORIZONTAL, this.NUM_CELLS_VERTICAL, this.NUM_CELLS_HORIZONTAL / 2, 2, 0, 1, new KeyCodes(87, 83, 65, 68))];
+	this.timeOut = 10000;
+	this.grid[this.NUM_CELLS_HORIZONTAL / 2][this.NUM_CELLS_VERTICAL - 2] = this.CELL_OCCUPIED;
+	this.grid[this.NUM_CELLS_HORIZONTAL / 2][2] = this.CELL_OCCUPIED;
+	
+	for (var i = 0; i < this.lightCycles.length; i++ ) {
+		document.addEventListener('keydown', this.lightCycles[i].keyDownHandler.bind(this.lightCycles[i]));
+	}
+}
+
+TronLightCycles.prototype = {
+	advance: function() {
+		for (var i = 0; i < this.lightCycles.length; i++) {
+			var lightCycle = this.lightCycles[i];
+			
+			if ( lightCycle.alive ) {
+				var new_x = lightCycle.x + lightCycle.vx;
+				var new_y = lightCycle.y + lightCycle.vy;
+
+				// Check for collision with grid boundaries and with trail
+				if (
+					new_x < 0 || new_x >= this.NUM_CELLS_HORIZONTAL
+					|| new_y < 0 || new_y >= this.NUM_CELLS_VERTICAL
+					|| this.grid[new_x][new_y] === this.CELL_OCCUPIED
+				) {
+					lightCycle.alive = false;
+
+					for (var j = 0; j < this.lightCycles.length; j++) { 
+						var lc = this.lightCycles[j];
+						// Cas où les deux lightCycle se crashent ensemble, l'autre meurt aussi
+						if (lightCycle.x === lc.x && (lightCycle.y === lc.y + 1 && lc.grid[lc.y + 1] != this.CELL_OCCUPIED || lightCycle.y === lc.y - 1 && lc.grid[lc.y + 1] != this.CELL_OCCUPIED) || lightCycle.y === lc.y && (lightCycle.x === lc.x + 1  && lc.grid[lc.x + 1] != this.CELL_OCCUPIED || lightCycle.x === lc.x - 1 && lc.grid[lc.x - 1] != this.CELL_OCCUPIED)) {
+						lc.alive = false;
+					}
+					}
+					this.isEnded = true;
+				}
+				else {
+					this.grid[new_x][new_y] = this.CELL_OCCUPIED;
+					lightCycle.grid[new_x][new_y] = this.CELL_OCCUPIED;
+					lightCycle.x = new_x;
+					lightCycle.y = new_y;
+				}
+			}
+		}
+		this.redraw();
+	},
+	redraw: function() {
+		this.context.fillStyle = "#000000";
+		this.context.fillRect(0,0,canvas.width,canvas.height);
+		
+		for (var i = 0; i < this.lightCycles.length; i++) {
+			var lightCycle = this.lightCycles[i];
+			this.context.fillStyle = lightCycle.traceColor;
+
+			for ( var j = 0; j < this.NUM_CELLS_HORIZONTAL; ++j ) {
+				for ( var k = 0; k < this.NUM_CELLS_VERTICAL; ++k ) {
+					if ( lightCycle.grid[j][k] === this.CELL_OCCUPIED )
+							this.context.fillRect( this.x0 + j * this.cellSize + 1, this.y0 + k * this.cellSize + 1, this.cellSize - 2, this.cellSize - 2 );
+				}
+			}
+			this.context.fillStyle = lightCycle.alive ? lightCycle.aliveColor : lightCycle.deadColor;
+			this.context.fillRect( this.x0 + lightCycle.x * this.cellSize, this.y0 + lightCycle.y * this.cellSize, this.cellSize, this.cellSize );
+		}
+
+	},
+	reset: function() {
+		this.grid = create2DArray( this.NUM_CELLS_HORIZONTAL, this.NUM_CELLS_VERTICAL);
+		for ( var i = 0; i < this.lightCycles.length; i++ )
+			this.lightCycles[i].reset();
+		this.isEnded = false;
+	},
+	start: function() {
+
+		var accelerationTimeout = 10000;
+		var refreshTime = 200;
+		var hasSetTimeout = false;
+		var accelerationInterval = null;
+		var lastRefreshInterval = null;
+
+		var self = this;
+
+		lastRefreshInterval = window.setInterval( function() {
+			console.log("RefreshFirst");
+			if (!self.isEnded) {
+				tronLightCycles.advance();
+				console.log("refreshFirstTimeout: " + accelerationTimeout)
+			}
+			else if (!hasSetTimeout){
+				var aliveLightCycles = self.lightCycles.filter(lightCycle => lightCycle.alive)
+				if (aliveLightCycles.length === 0) {
+					for (var lightCycle of self.lightCycles) {
+						const score = Number(document.getElementById(lightCycle.description).innerText) + 1;
+						document.getElementById(lightCycle.description).innerText = "" + score;
+					}
+				}
+				else if (aliveLightCycles.length == 1) {
+					const score = Number(this.document.getElementById(aliveLightCycles[0].description).innerText) + 1;
+					document.getElementById(aliveLightCycles[0].description).innerText = "" + score;
+				}
+				window.setTimeout(function() {
+					self.reset();
+					self.start();
+				}, 4000)
+				hasSetTimeout = true;
+				if (lastRefreshInterval != null) 
+					window.clearInterval(lastRefreshInterval);
+				if (accelerationInterval != null)
+					window.clearInterval(accelerationInterval);
+			}
+		} , refreshTime );
+
+		accelerationInterval = window.setInterval(function() {
+			console.log("Accelère");
+			console.log("accelerationTimeout: " + accelerationTimeout)
+			if (lastRefreshInterval != null)
+					window.clearInterval(lastRefreshInterval);
+			lastRefreshInterval = window.setInterval( function() {
+				console.log("Refresh");
+				if (!self.isEnded) {
+					tronLightCycles.advance();
+					console.log("refreshTimeout: " + refreshTime)
+				}
+				else if (!hasSetTimeout){
+					var aliveLightCycles = self.lightCycles.filter(lightCycle => lightCycle.alive)
+					if (aliveLightCycles.length === 0) {
+						for (var lightCycle of self.lightCycles) {
+							const score = Number(document.getElementById(lightCycle.description).innerText) + 1;
+							document.getElementById(lightCycle.description).innerText = "" + score;
+						}
+					}
+					else if (aliveLightCycles.length == 1) {
+						const score = Number(document.getElementById(aliveLightCycles[0].description).innerText) + 1;
+						document.getElementById(aliveLightCycles[0].description).innerText = "" + score;
+					}
+					window.setTimeout( function() {
+						self.reset();
+						self.start();
+					}, 4000);
+					hasSetTimeout = true;
+					if (lastRefreshInterval != null)
+						window.clearInterval(lastRefreshInterval);
+					if (accelerationInterval != null)
+						window.clearInterval(accelerationInterval);
+				}
+			} , refreshTime );
+
+			// On raccourcit l'intervalle de rafraichissement pour donner la sensation d'accélération
+			refreshTime *= 0.75;
+			// On raccourcit l'intervalle avant la nouvelle accélération.
+			accelerationTimeout *= 0.8;
+
+		}, accelerationTimeout);
+
+	}
+
+}
+
+var canvas = document.getElementById("myCanvas")
+var tronLightCycles = new TronLightCycles(canvas);
+tronLightCycles.start.bind(tronLightCycles)();
+
+</script>
+
+</body>
+</html>
+
