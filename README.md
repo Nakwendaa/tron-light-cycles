@@ -6,8 +6,8 @@ The game refers to the "Light Cycles" of the movie [Tron (1982)](https://en.wiki
 
 ### Green player
 
-Controlled by keyboard keys A, S, D, W (or, if you have an Azerty keyboard, use Q, S, D, Z)
+Controlled by keyboard keys A, S, D, W (or, if you have an Azerty keyboard, use Q, S, D, Z).
 
 ### Red player
 
-Controlled by keyboard keys ←, ↓, →, ↑ 
+Controlled by keyboard keys ←, ↓, →, ↑ .
